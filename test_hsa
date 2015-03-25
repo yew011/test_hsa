@@ -1,11 +1,15 @@
 #!/bin/bash
 #
-# Test scripts for 'ovs-appctl hsa/calculate command'
+# Test scripts for 'ovs-appctl hsa/detect-leak command'
 #
 #
 #
 print_output() {
     printf "%-30s     %s\n" "$1" "$2"
+    if [ "$2" = "failed" ]; then
+        printf "Expected:\n%s\n" "$3"
+        printf "Actual:\n%s\n" "$4"
+    fi
 }
 
 ovs-vsctl add-br br0
@@ -22,14 +26,14 @@ ovs-ofctl add-flow br0 "priority=3,in_port=100,ip,nw_src=10.1.0.0/255.255.0.0,ac
 ovs-ofctl add-flow br0 "priority=2,in_port=100,ip,nw_src=20.2.0.0/255.255.0.0,actions=drop"
 ovs-ofctl add-flow br0 "priority=1,in_port=100,tun_id=0xffffffffffffffff,tcp,nw_src=30.1.0.0/255.255.0.0,tp_src=10,actions=200"
 
-OUTPUT="$(ovs-appctl hsa/calculate br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
+OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
 EXPECT="200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16
 200                tcp,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=30.1.0.0/16,tp_src=10"
 
 if [ "$OUTPUT" = "$EXPECT" ]; then
     print_output "simple test 1" "passed"
 else
-    print_output "simple test 1" "failed"
+    print_output "simple test 1" "failed" "${EXPECT}" "${OUTPUT}"
     exit 1
 fi
 
@@ -40,14 +44,14 @@ ovs-ofctl add-flow br0 "priority=1,in_port=100,ip,nw_src=10.1.0.0/255.255.0.0,ac
 ovs-ofctl add-flow br0 "priority=2,in_port=100,ip,nw_src=20.2.0.0/255.255.0.0,actions=drop"
 ovs-ofctl add-flow br0 "priority=3,in_port=100,tun_id=0xffffffffffffffff,tcp,nw_src=30.1.0.0/255.255.0.0,tp_src=10,actions=200"
 
-OUTPUT="$(ovs-appctl hsa/calculate br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
+OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
 EXPECT="200                tcp,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=30.1.0.0/16,tp_src=10
 200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16"
 
 if [ "$OUTPUT" = "$EXPECT" ]; then
     print_output "simple test 2" "passed"
 else
-    print_output "simple test 2" "failed"
+    print_output "simple test 2" "failed" "${EXPECT}" "${OUTPUT}"
     exit 1
 fi
 
@@ -59,24 +63,24 @@ ovs-ofctl add-flow br0 "priority=10,reg2=0xffff,actions=300"
 ovs-ofctl add-flow br0 "priority=2,in_port=100,tun_id=0xffffffffffffffff,actions=resubmit(,1)"
 ovs-ofctl add-flow br0 "table=1,tun_id=0xffffffffffffffff,actions=load:0xffff->NXM_NX_REG2[0..15],resubmit(,0)"
 
-OUTPUT="$(ovs-appctl hsa/calculate br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
+OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
 EXPECT="200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0100/0x0100
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0200/0x0200
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0400/0x0400
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0000/0x0800
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x1000/0x1000
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x2000/0x2000
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x4000/0x4000
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x8000/0x8000
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0001/0x0001
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0002/0x0002
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0004/0x0004
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0008/0x0008
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0010/0x0010
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0020/0x0020
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0040/0x0040
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0080/0x0080
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0100
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0200
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0400
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0000
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x1000
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x2000
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x4000
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x8000
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0001
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0002
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0004
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0008
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0010
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0020
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0040
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0080
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=1.0.0.0/1.0.0.0
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=0.0.0.0/2.0.0.0
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=4.0.0.0/4.0.0.0
@@ -97,7 +101,7 @@ EXPECT="200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,r
 if [ "$OUTPUT" = "$EXPECT" ]; then
     print_output "resubmit test 1" "passed"
 else
-    print_output "resubmit test 1" "failed"
+    print_output "resubmit test 1" "failed" "${EXPECT}" "${OUTPUT}"
     exit 1
 fi
 
@@ -111,24 +115,24 @@ ovs-ofctl add-flow br0 "priority=2,in_port=100,tun_id=0xffffffffffffffff,actions
 ovs-ofctl add-flow br0 "table=1,tun_id=0xffffffffffffffff,actions=load:0xffff->NXM_NX_REG2[0..15],resubmit(,0)"
 ovs-ofctl add-flow br0 "table=2,reg2=0xffff,dl_vlan=10,actions=output:400"
 
-OUTPUT="$(ovs-appctl hsa/calculate br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
+OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
 EXPECT="200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0100/0x0100
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0200/0x0200
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0400/0x0400
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0000/0x0800
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x1000/0x1000
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x2000/0x2000
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x4000/0x4000
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x8000/0x8000
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0001/0x0001
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0002/0x0002
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0004/0x0004
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0008/0x0008
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0010/0x0010
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0020/0x0020
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0040/0x0040
-300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0080/0x0080
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0100
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0200
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0400
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0000
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x1000
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x2000
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x4000
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x8000
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0001
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0002
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0004
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0008
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0010
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0020
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0040
+300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0080
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=1.0.0.0/1.0.0.0
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=0.0.0.0/2.0.0.0
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=4.0.0.0/4.0.0.0
@@ -145,22 +149,22 @@ EXPECT="200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,r
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=0.32.0.0/0.32.0.0
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=0.64.0.0/0.64.0.0
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=0.128.0.0/0.128.0.0
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0100/0x0100
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0200/0x0200
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0400/0x0400
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0000/0x0800
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x1000/0x1000
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x2000/0x2000
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x4000/0x4000
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x8000/0x8000
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0001/0x0001
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0002/0x0002
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0004/0x0004
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0008/0x0008
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0010/0x0010
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0020/0x0020
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0040/0x0040
-400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0080/0x0080
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0100
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0200
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0400
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0000
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x1000
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x2000
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x4000
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x8000
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0001
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0002
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0004
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0008
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0010
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0020
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0040
+400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0080
 400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=1.0.0.0/1.0.0.0
 400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=0.0.0.0/2.0.0.0
 400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=4.0.0.0/4.0.0.0
@@ -181,7 +185,7 @@ EXPECT="200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,r
 if [ "$OUTPUT" = "$EXPECT" ]; then
     print_output "resubmit test 2" "passed"
 else
-    print_output "resubmit test 2" "failed"
+    print_output "resubmit test 2" "failed" "${EXPECT}" "${OUTPUT}"
     exit 1
 fi
 
@@ -197,4 +201,4 @@ ovs-ofctl add-flow br0 "priority=1,actions=move:NXM_NX_TUN_ID[0..31]->NXM_NX_REG
 ovs-ofctl add-flow br0 "table=1,tun_id=0xffffffffffffffff,actions=load:0xffff->NXM_NX_REG2[0..15],resubmit(,0)"
 ovs-ofctl add-flow br0 "table=2,reg3=0x1/0x1,actions=output:400"
 
-ovs-appctl hsa/calculate br0 100
+ovs-appctl hsa/detect-leak br0 100
