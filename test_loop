@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# Test scripts for 'ovs-appctl hsa/detect-loop command'
+#
+#
+#
+print_output() {
+    printf "%-30s     %s\n" "$1" "$2"
+    if [ "$2" = "failed" ]; then
+        printf "Expected:\n%s\n" "$3"
+        printf "Actual:\n%s\n" "$4"
+    fi
+}
+
+ovs-vsctl add-br br0
+ovs-vsctl add-port br0 p0 -- set int p0 type=internal ofport_request=100
+ovs-vsctl add-port br0 p1 -- set int p1 type=internal ofport_request=200
+ovs-vsctl add-port br0 p2 -- set int p2 type=internal ofport_request=300
+ovs-vsctl add-port br0 p3 -- set int p3 type=internal ofport_request=400
+
+ovs-ofctl del-flows br0
+
+# simple infinite loop 1
+
+ovs-ofctl add-flow br0 "table=0, priority=3,in_port=100,ip,nw_src=10.1.0.0/255.255.0.0,actions=200,resubmit(,1)"
+ovs-ofctl add-flow br0 "table=1, in_port=100,ip,nw_dst=20.2.0.0/255.255.0.0,actions=load:0xffff->NXM_NX_REG2[0..15],resubmit(,0)"
+
+ovs-appctl hsa/detect-loop br0 100
+
+
+
+
+ovs-ofctl del-flows br0
+
+# simple finite loop 1
+
+ovs-ofctl add-flow br0 "table=0, priority=3,in_port=100,ip,nw_src=10.1.0.0/255.255.0.0,actions=200,resubmit(,1)"
+ovs-ofctl add-flow br0 "table=1, priority=2,in_port=100,reg3=0xffff,actions=resubmit(,3)"
+ovs-ofctl add-flow br0 "table=1, priority=1,in_port=100,ip,nw_dst=20.2.0.0/255.255.0.0,actions=load:0xffff->NXM_NX_REG2[0..15],resubmit(,2)"
+ovs-ofctl add-flow br0 "table=2, in_port=100,reg2=0xffff,actions=load:0xffff->NXM_NX_REG3[0..15],resubmit(,0)"
+ovs-ofctl add-flow br0 "table=3, in_port=100,actions=output:300"
+

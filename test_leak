@@ -26,8 +26,15 @@ ovs-ofctl add-flow br0 "priority=3,in_port=100,ip,nw_src=10.1.0.0/255.255.0.0,ac
 ovs-ofctl add-flow br0 "priority=2,in_port=100,ip,nw_src=20.2.0.0/255.255.0.0,actions=drop"
 ovs-ofctl add-flow br0 "priority=1,in_port=100,tun_id=0xffffffffffffffff,tcp,nw_src=30.1.0.0/255.255.0.0,tp_src=10,actions=200"
 
-OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
-EXPECT="200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16
+OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p')"
+EXPECT="OUTPUT
+======
+Output Port No      Input Header Space
+==============      ==================
+200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16
+
+Output Port No      Input Header Space
+==============      ==================
 200                tcp,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=30.1.0.0/16,tp_src=10"
 
 if [ "$OUTPUT" = "$EXPECT" ]; then
@@ -44,8 +51,15 @@ ovs-ofctl add-flow br0 "priority=1,in_port=100,ip,nw_src=10.1.0.0/255.255.0.0,ac
 ovs-ofctl add-flow br0 "priority=2,in_port=100,ip,nw_src=20.2.0.0/255.255.0.0,actions=drop"
 ovs-ofctl add-flow br0 "priority=3,in_port=100,tun_id=0xffffffffffffffff,tcp,nw_src=30.1.0.0/255.255.0.0,tp_src=10,actions=200"
 
-OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
-EXPECT="200                tcp,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=30.1.0.0/16,tp_src=10
+OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p')"
+EXPECT="OUTPUT
+======
+Output Port No      Input Header Space
+==============      ==================
+200                tcp,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=30.1.0.0/16,tp_src=10
+
+Output Port No      Input Header Space
+==============      ==================
 200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16"
 
 if [ "$OUTPUT" = "$EXPECT" ]; then
@@ -63,8 +77,15 @@ ovs-ofctl add-flow br0 "priority=10,reg2=0xffff,actions=300"
 ovs-ofctl add-flow br0 "priority=2,in_port=100,tun_id=0xffffffffffffffff,actions=resubmit(,1)"
 ovs-ofctl add-flow br0 "table=1,tun_id=0xffffffffffffffff,actions=load:0xffff->NXM_NX_REG2[0..15],resubmit(,0)"
 
-OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
-EXPECT="200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16
+OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p')"
+EXPECT="OUTPUT
+======
+Output Port No      Input Header Space
+==============      ==================
+200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16
+
+Output Port No      Input Header Space
+==============      ==================
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0100
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0200
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0400
@@ -115,8 +136,15 @@ ovs-ofctl add-flow br0 "priority=2,in_port=100,tun_id=0xffffffffffffffff,actions
 ovs-ofctl add-flow br0 "table=1,tun_id=0xffffffffffffffff,actions=load:0xffff->NXM_NX_REG2[0..15],resubmit(,0)"
 ovs-ofctl add-flow br0 "table=2,reg2=0xffff,dl_vlan=10,actions=output:400"
 
-OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p' | tail -n+5)"
-EXPECT="200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16
+OUTPUT="$(ovs-appctl hsa/detect-leak br0 100 | sed -n -e '/OUTPUT/,$p')"
+EXPECT="OUTPUT
+======
+Output Port No      Input Header Space
+==============      ==================
+200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,metadata=0,in_port=100,nw_src=10.1.0.0/16
+
+Output Port No      Input Header Space
+==============      ==================
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0100
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0200
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0400
@@ -149,6 +177,9 @@ EXPECT="200                ip,reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,r
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=0.32.0.0/0.32.0.0
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=0.64.0.0/0.64.0.0
 300                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,nw_src=0.128.0.0/0.128.0.0
+
+Output Port No      Input Header Space
+==============      ==================
 400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0100
 400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0200
 400                reg0=0,reg1=0,reg2=0,reg3=0,reg4=0,reg5=0,reg6=0,reg7=0,tun_id=0xffffffffffffffff,metadata=0,in_port=100,dl_type=0x0400
@@ -195,10 +226,11 @@ fi
 ovs-ofctl del-flows br0
 ovs-ofctl add-flow br0 "priority=20,in_port=100,reg2=0,ip,nw_src=10.1.0.0/255.255.0.0,actions=200"
 ovs-ofctl add-flow br0 "priority=10,reg2=0xffff,actions=300"
-ovs-ofctl add-flow br0 "priority=2,in_port=100,tun_id=0xffffffffffffffff,actions=resubmit(,1),mod_vlan_vid:10,resubmit(,2)"
+ovs-ofctl add-flow br0 "priority=2,in_port=100,tun_id=0xffffffff00000000/0xffffffff00000000,actions=resubmit(,1),mod_vlan_vid:10,resubmit(,2)" 
 ovs-ofctl add-flow br0 "priority=1,actions=move:NXM_NX_TUN_ID[0..31]->NXM_NX_REG3[0..31],resubmit(,2)"
 
-ovs-ofctl add-flow br0 "table=1,tun_id=0xffffffffffffffff,actions=load:0xffff->NXM_NX_REG2[0..15],resubmit(,0)"
-ovs-ofctl add-flow br0 "table=2,reg3=0x1/0x1,actions=output:400"
+ovs-ofctl add-flow br0 "table=1,tun_id=0xffffffff12345678,actions=load:0xffff->NXM_NX_REG2[0..15],resubmit(,0)"
+ovs-ofctl add-flow br0 "table=1,tun_id=0xffffffff87654321,actions=load:0xffff->NXM_NX_REG5[0..15],resubmit(,0)"
+ovs-ofctl add-flow br0 "table=2,reg3=0xffffffff,actions=output:400"
 
 ovs-appctl hsa/detect-leak br0 100
